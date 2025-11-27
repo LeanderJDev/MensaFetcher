@@ -15,7 +15,6 @@ This script extracts:
 The parser is heuristic to handle compressed single-line HTML.
 
 """
-from __future__ import annotations
 
 import argparse
 import datetime
@@ -216,6 +215,13 @@ def parse_html(html: str, date: str) -> List[Dict]:
     for n in nodes:
         results.append(extract_from_node(n, global_zs))
     return results
+
+
+def parse_url_to_items(url: str, date: Optional[datetime.date] = None):
+    day_of_year = date.timetuple().tm_yday
+    date_str = str(date.year * 1000 + day_of_year)
+    html = load_html_from_url(url)
+    return parse_html(html, date_str)
 
 
 def main() -> None:
