@@ -3,14 +3,24 @@
 -   Datensammlung und Parsing von Mensa-Speiseplänen der my-mensa.de Plattform.
 -   Kompatibel mit allen my-mensa.de/essen.php Seiten
 
-## parse_menu.py
+## parser.py
 
--   Script zum Parsen der Mensa‑HTML (auch komprimierte Einzeiler) und Export als JSON.
--   Unterstützt Eingabe per URL (`--url`) oder lokale Datei (`--file`).
--   Ausgabe als JSON in Datei (`-o/--output`) oder stdout (Standard).
--   Optionales `--date` Argument zur Angabe des Datums des Speiseplans (Format: `YYYYMMDD` oder `today` für aktuelles Datum).
+-   Modul zum Parsen der Mensa‑HTML (auch komprimierte Einzeiler) und Export als JSON.
 -   Entfernt unsichtbare Zeichen aus Textfeldern.
 -   Extrahiert Gerichtsinformationen: `name`, `description`, `category`, `zusatzstoffe`, `tags`, `price_eur`.
+
+### fetch_menu.py
+
+-   Wrapper für parser.py zum Abrufen und Parsen von Menüs
+-   Unterstützt Eingabe per URL (`--url`) oder lokale Datei (`--file`).
+-   Ausgabe als JSON in Datei (`-o/--output`)
+-   Optionales `--date` Argument zur Angabe des Datums des Speiseplans (Format: `YYYYMMDD` oder `today` für aktuelles Datum).
+
+## ingest.py
+
+-   Speichert die geparsten Menüeinträge aus einer gegebenen URL in eine Datenbank
+-   Soll von Cron aufgerufen werden
+-   Ermöglicht mehrere Attempts für denselben Tag, um Verfügbarkeitsänderungen zu erfassen
 
 ## Schnellstart
 

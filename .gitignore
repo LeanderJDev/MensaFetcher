@@ -7,3 +7,9 @@ development/
 JSONs_old/
 
 .vscode
+
+.venv/
+
+__pycache__/
+
+*.json

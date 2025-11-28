@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """Parse a mensa/menu HTML page (even if it's one long line) and extract meals.
 
-Usage examples:
-  python3 parse_menu.py --file sample_menu.html
-  python3 parse_menu.py --url https://example.my-mensa.de/essen.php
-
-This script extracts:
+This parser extracts:
  - meal name
  - category (if found)
  - zusatzstoffe (numbers in parentheses)
@@ -16,15 +12,13 @@ The parser is heuristic to handle compressed single-line HTML.
 
 """
 
-import argparse
+
 import datetime
 import json
 import re
-from typing import List, Dict, Optional
+from typing import Any, Optional, List, Dict
 
 import requests
-import os
-import tempfile
 from bs4 import BeautifulSoup, Tag
 import html as _html
 
@@ -45,7 +39,14 @@ _INVISIBLE_REPLACEMENTS = {
 
 
 def clean_text(s: Optional[str]) -> Optional[str]:
-    """Normalize and remove invisible/control characters from text."""
+    """Normalize and remove invisible/control characters from text.
+
+    Args:
+        s (str): Input string
+
+    Returns:
+        Optional[str]: Cleaned string or None
+    """
     if s is None:
         return None
     if not isinstance(s, str):
@@ -61,8 +62,19 @@ def clean_text(s: Optional[str]) -> Optional[str]:
 
 
 def parse_global_zusatzstoffe(html: str) -> Dict[str, str]:
-    """Parse JavaScript block which defines `zusatzstoffe["KEY"] = JSON.parse('...')`.
-    Returns mapping KEY -> human-readable name (if available) or empty string.
+    """Parse JavaScript blocks that define extra-ingredient mappings.
+
+    The target pages embed mappings like ``zusatzstoffe["KEY"] = JSON.parse('...')``
+    in inline JavaScript. This function extracts those payloads and returns a
+    dictionary mapping the KEY to a human-readable name (if available) or an
+    empty string.
+
+    Args:
+        html: The full HTML document as a string.
+
+    Returns:
+        A mapping from the zusatzstoff key (str) to its human readable name
+        (str) or an empty string when no name could be parsed.
     """
     mapping: Dict[str, str] = {}
     # simplified: find the JSON payloads and load them; site format is stable
@@ -86,11 +98,33 @@ def parse_global_zusatzstoffe(html: str) -> Dict[str, str]:
 
 
 def load_html_from_file(path: str) -> str:
+    """Load HTML content from a local file.
+
+    Args:
+        path: Path to the HTML file.
+
+    Returns:
+        The file contents decoded as UTF-8.
+    """
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 
 def load_html_from_url(url: str) -> str:
+    """Fetch HTML from a remote URL using ``requests``.
+
+    A conservative timeout is used and a descriptive User-Agent header is set
+    to identify this tool. HTTP errors raise an exception.
+
+    Args:
+        url: The URL to fetch.
+
+    Returns:
+        The response body as decoded text.
+
+    Raises:
+        requests.HTTPError: If the response contains an HTTP error status.
+    """
     resp = requests.get(
         url,
         timeout=10,
@@ -104,14 +138,38 @@ def load_html_from_url(url: str) -> str:
 
 
 def find_dish_list(soup: BeautifulSoup) -> List[Tag]:
-    """Find candidate <li> elements that represent dishes.
+    """Locate candidate ``<li>`` elements that represent dishes.
 
-    each dish is a <li> with both `data-gid` and `ref`
+    The site represents each dish as an ``<li>`` element that contains both a
+    ``data-gid`` and a ``ref`` attribute. This helper returns the matching
+    Tag objects for further extraction.
+
+    Args:
+        soup: A BeautifulSoup-parsed document.
+
+    Returns:
+        A list of Tag objects for candidate dish list items.
     """
     return list(soup.select("li[data-gid][ref]"))
 
 
 def extract_from_node(node: Tag, global_zs: Dict[str, str]) -> Dict[str, Optional[str]]:
+    """Extract structured dish information from a single ``<li>`` node.
+
+    The returned dictionary contains the following keys:
+    ``name`` (str|None), ``description`` (str|None), ``category`` (str|None),
+    ``zusatzstoffe`` (list[str]), ``tags`` (list[str]) and ``price_eur``
+    (float|None).
+
+    Args:
+        node: The BeautifulSoup Tag corresponding to a single dish ``<li>``.
+        global_zs: Mapping of valid zusatzstoff codes (from
+            :func:`parse_global_zusatzstoffe`). If provided, only codes present
+            in this mapping are returned.
+
+    Returns:
+        A dict with parsed fields for the dish.
+    """
     text = clean_text(node.get_text(" ", strip=True))
     # price
     price_m = PRICE_RE.search(text)
@@ -178,7 +236,23 @@ def extract_from_node(node: Tag, global_zs: Dict[str, str]) -> Dict[str, Optiona
     }
 
 
-def parse_html(html: str, date: str) -> List[Dict]:
+def parse_html(html: str, date: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Parse a mensa HTML page and extract the list of dishes for a date.
+
+    The function locates the HTML block(s) that correspond to menu days
+    (identified by IDs containing ``_tag_<number>``). If a ``date`` token is
+    provided it will try to select the matching block; otherwise the first
+    (lowest) tag is used.
+
+    Args:
+        html: Full HTML document as text.
+        date: Optional date token (string like ``YYYYDDD``). If omitted, the
+            first available tag block is parsed.
+
+    Returns:
+        A list of dictionaries representing parsed dishes. Each dict uses the
+        same structure as returned by :func:`extract_from_node`.
+    """
     soup = BeautifulSoup(html, "html.parser")
     global_zs = parse_global_zusatzstoffe(html)
 
@@ -217,75 +291,24 @@ def parse_html(html: str, date: str) -> List[Dict]:
     return results
 
 
-def parse_url_to_items(url: str, date: Optional[datetime.date] = None):
-    day_of_year = date.timetuple().tm_yday
-    date_str = str(date.year * 1000 + day_of_year)
+def parse_url_to_items(
+    url: str, date: Optional[datetime.date] = None
+) -> List[Dict[str, Any]]:
+    """Fetch a URL and parse dishes for the given date.
+
+    Args:
+        url: URL to fetch.
+        date: Optional `datetime.date`. If provided it will be converted to the
+            internal date token format (``YYYYDDD``) before parsing.
+
+    Returns:
+        A list of parsed dish dictionaries (same format as
+        :func:`parse_html`).
+    """
+    if date is None:
+        date_str = None
+    else:
+        day_of_year = date.timetuple().tm_yday
+        date_str = str(date.year * 1000 + day_of_year)
     html = load_html_from_url(url)
     return parse_html(html, date_str)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--file", help="Read HTML from file")
-    parser.add_argument("--url", help="Fetch HTML from URL")
-    parser.add_argument("--date", help="Fetch HTML from URL for specific date")
-    parser.add_argument(
-        "--output", "-o", default="menu_parsed.json", help="Output JSON file"
-    )
-    args = parser.parse_args()
-    if not args.file and not args.url:
-        parser.error("provide --file or --url")
-
-    # Normalize date token for parsing and for filename when requested.
-    date = args.date
-    if date == "today":
-        today = datetime.date.today()
-        day_of_year = today.timetuple().tm_yday
-        date = str(today.year * 1000 + day_of_year)
-
-    # If the user didn't override the output filename and provided a date,
-    # name the file using that date (sanitized).
-    output_filename = args.output or "menu_parsed.json"
-    if args.date and (output_filename == "menu_parsed.json"):
-        safe_date = re.sub(r"[^A-Za-z0-9_.-]", "_", date)
-        output_filename = f"menu_{safe_date}.json"
-
-    if args.file:
-        html = load_html_from_file(args.file)
-    else:
-        html = load_html_from_url(args.url)
-
-    parsed = parse_html(html, date)
-
-    # --- Atomarer Schreibvorgang ---
-    # Um sicherzustellen, dass Cron‑Jobs oder unerwartete Abbrüche
-    # keine halbgeschriebenen Ausgabedateien hinterlassen, schreiben
-    # wir zuerst in eine temporäre Datei im selben Verzeichnis und
-    # ersetzen anschließend die Zieldatei mit os.replace().
-    # os.replace() ist atomar auf den meisten POSIX‑Dateisystemen.
-    out_dir = os.path.dirname(output_filename) or "."
-    # NamedTemporaryFile mit delete=False, damit wir die Datei nach dem
-    # Schreiben sicher umbenennen können. Wir schließen die Datei explizit
-    # bevor wir os.replace() aufrufen.
-    fd, tmp_path = tempfile.mkstemp(prefix="tmp_menu_", dir=out_dir, text=True)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as tf:
-            json.dump(parsed, tf, ensure_ascii=False, indent=2)
-            tf.flush()
-            os.fsync(tf.fileno())
-        # atomar ersetzen
-        os.replace(tmp_path, output_filename)
-    except Exception:
-        # Aufräumen bei Fehlern
-        try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except Exception:
-            pass
-        raise
-
-    print(f"Wrote {len(parsed)} items to {output_filename}")
-
-
-if __name__ == "__main__":
-    main()
