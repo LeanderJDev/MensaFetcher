@@ -13,3 +13,5 @@ JSONs_old/
 __pycache__/
 
 *.json
+
+*.db

@@ -51,7 +51,7 @@ def main() -> None:
     else:
         html = parser.load_html_from_url(args.url)
 
-    parsed = parser.parse_html(html, date)
+    parsed = parser.parse_html(html, date)[0]
 
     # If an output filename was provided (or derived from date), write
     # atomically to that file. Otherwise print JSON to stdout.

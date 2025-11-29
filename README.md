@@ -18,9 +18,23 @@
 
 ## ingest.py
 
--   Speichert die geparsten Menüeinträge aus einer gegebenen URL in eine Datenbank
--   Soll von Cron aufgerufen werden
--   Ermöglicht mehrere Attempts für denselben Tag, um Verfügbarkeitsänderungen zu erfassen
+Das Projekt enthält eine Ingest‑Pipeline, die Snapshots in eine
+SQLite‑Datenbank schreibt und beim zweiten Lauf (attempt=2) automatisch
+berechnet, welche Gerichte seit dem ersten Lauf leer waren.
+
+Wichtigste Dateien:
+
+-   `src/ingest.py` — CLI zum Ausführen eines Ingest‑Laufs
+-   `src/db.py` — DB‑Initialisierung und Helfer: `init_db`, `store_snapshot`, `compute_empties`
+-   `scripts/backup_db.sh` — einfaches Backup‑Skript für die DB‑Datei
+
+Benachrichtigungen:
+
+-   `src.ingest` unterstützt `--notify-cmd` oder die Umgebungsvariable
+    `MENSA_NOTIFY_CMD` — wird mit `subject` und `body` aufgerufen.
+
+Hinweis: für die Langzeit‑Auswertung lade die relevanten Tabellen nach Pandas
+mit `pd.read_sql()` und verwende `merge`/`explode` für Tag‑Analysen.
 
 ## Schnellstart
 
@@ -51,7 +65,11 @@ python3 mensa/parse_menu.py --file menu_251126.html --date 2025329
 -   Tägliches Ausführen um 06:00 Uhr und Ablage pro Datum (systemweit für den Benutzer):
 
 ```cron
-0 6 * * * cd path_to_project && /usr/bin/python3 ./parse_menu.py --url 'https://example.my-mensa.de/essen.php?mensa=example' --date today
+15 11 * * 1-5 /usr/bin/python3 /path/to/MensaFetcher/src/fetch_menu.py --url "https://example.my-mensa.de/essen.php?mensa=123" -o /path/to/MensaFetcher/menus/menu_$(date +\%Y\%m\%d).json --attempt 1
+
+45 12 * * 1-5 /usr/bin/python3 /path/to/MensaFetcher/src/fetch_menu.py --url "https://example.my-mensa.de/essen.php?mensa=123" -o /path/to/MensaFetcher/menus/menu_$(date +\%Y\%m\%d).json --attempt 2
+
+0 3 * * 6 /bin/bash /path/to/MensaFetcher/scripts/backup_db.sh /path/to/MensaFetcher/mensa.db /path/to/MensaFetcher/backups
 ```
 
 Hinweis: Das Script benennt die Datei `menu_<numericDate>.json`, wenn `--date` verwendet wird und kein `-o` gesetzt ist.

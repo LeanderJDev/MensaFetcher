@@ -12,11 +12,13 @@ The parser is heuristic to handle compressed single-line HTML.
 
 """
 
+from __future__ import annotations
 
 import datetime
 import json
 import re
 from typing import Any, Optional, List, Dict
+import logging
 
 import requests
 from bs4 import BeautifulSoup, Tag
@@ -93,7 +95,7 @@ def parse_global_zusatzstoffe(html: str) -> Dict[str, str]:
                 obj = json.loads(js_str.replace("\\/", "/"))
             except Exception:
                 obj = {}
-        mapping[key] = obj.get("id") or obj.get("name") or ""
+        mapping[key] = obj.get("name") or ""
     return mapping
 
 
@@ -276,8 +278,8 @@ def parse_html(html: str, date: Optional[str] = None) -> List[Dict[str, Any]]:
                     date_found = True
                     break
             if not date_found:
-                print(
-                    f"Warning: specified date {date} not found, using first available tag."
+                logging.warning(
+                    f"specified date {date} not found, using first available tag."
                 )
         tag_divs.sort(key=lambda x: x[0])
         chosen = tag_divs[0][1]
@@ -288,7 +290,7 @@ def parse_html(html: str, date: Optional[str] = None) -> List[Dict[str, Any]]:
     results = []
     for n in nodes:
         results.append(extract_from_node(n, global_zs))
-    return results
+    return [results, global_zs]
 
 
 def parse_url_to_items(
@@ -312,3 +314,11 @@ def parse_url_to_items(
         date_str = str(date.year * 1000 + day_of_year)
     html = load_html_from_url(url)
     return parse_html(html, date_str)
+
+
+__all__ = [
+    "parse_url_to_items",
+    "load_html_from_file",
+    "load_html_from_url",
+    "parse_html",
+]
