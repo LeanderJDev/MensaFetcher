@@ -15,3 +15,7 @@ __pycache__/
 *.json
 
 *.db
+
+backups/
+
+menus/

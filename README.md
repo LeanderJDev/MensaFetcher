@@ -65,9 +65,9 @@ python3 mensa/parse_menu.py --file menu_251126.html --date 2025329
 -   Tägliches Ausführen um 06:00 Uhr und Ablage pro Datum (systemweit für den Benutzer):
 
 ```cron
-15 11 * * 1-5 /usr/bin/python3 /path/to/MensaFetcher/src/fetch_menu.py --url "https://example.my-mensa.de/essen.php?mensa=123" -o /path/to/MensaFetcher/menus/menu_$(date +\%Y\%m\%d).json --attempt 1
+15 11 * * 1-5 cd /path/to/MensaFetcher/ && /usr/bin/python3 src.ingest --url "https://example.my-mensa.de/essen.php?mensa=123" --db /path/to/MensaFetcher/menus/mensa.db --attempt 1
 
-45 12 * * 1-5 /usr/bin/python3 /path/to/MensaFetcher/src/fetch_menu.py --url "https://example.my-mensa.de/essen.php?mensa=123" -o /path/to/MensaFetcher/menus/menu_$(date +\%Y\%m\%d).json --attempt 2
+45 12 * * 1-5 cd /path/to/MensaFetcher/ && /usr/bin/python3 -m src.ingest --url "https://example.my-mensa.de/essen.php?mensa=123" --db /path/to/MensaFetcher/menus/mensa.db --attempt 2
 
 0 3 * * 6 /bin/bash /path/to/MensaFetcher/scripts/backup_db.sh /path/to/MensaFetcher/mensa.db /path/to/MensaFetcher/backups
 ```
