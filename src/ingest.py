@@ -21,7 +21,7 @@ import os
 import sqlite3
 import subprocess
 import sys
-import trace
+import shlex
 import traceback
 from typing import Optional
 
@@ -63,9 +63,19 @@ def notify_if_configured(cmd: Optional[str], subject: str, body: str) -> None:
     if not cmd:
         return
     try:
-        # run command as a shell invocation if it contains spaces; allow
-        # user to pass e.g. '/usr/bin/notify-send' or 'sh /path/to/script.sh'
-        subprocess.run([cmd, subject, body], check=False)
+        # Split the command string into argv (handles commands like
+        # '/usr/bin/python3 /path/to/script.py') safely.
+        if isinstance(cmd, str):
+            cmd_list = shlex.split(cmd)
+        else:
+            cmd_list = [cmd]
+        cmd_list = cmd_list + [subject, body]
+        proc = subprocess.run(cmd_list, check=False, capture_output=True, text=True)
+        if proc.returncode != 0:
+            print(
+                f"=== Notification command failed (exit {proc.returncode}) ===\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}\n=== End notification error ===",
+                file=sys.stderr,
+            )
     except Exception:
         print("=== Notification failed ===", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
