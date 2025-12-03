@@ -21,6 +21,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+import trace
 import traceback
 from typing import Optional
 
@@ -67,6 +68,7 @@ def notify_if_configured(cmd: Optional[str], subject: str, body: str) -> None:
         subprocess.run([cmd, subject, body], check=False)
     except Exception:
         print("Notification failed", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
 
 def main() -> None:
@@ -98,6 +100,7 @@ def main() -> None:
     )
     args = p.parse_args()
 
+    conn = None
     try:
         date_token = parse_date_arg(args.date)
 
@@ -129,11 +132,25 @@ def main() -> None:
     except Exception:
         tb = traceback.format_exc()
         print("Error during ingest:\n", tb, file=sys.stderr)
-        notify_if_configured(args.notify_cmd, "Mensa ingest failed", tb)
-        raise
+        # try to notify, but don't let notification failures mask the original error
+        try:
+            notify_if_configured(args.notify_cmd, "Mensa ingest failed", tb)
+        except Exception as nerr:
+            print("Notification failed:", nerr, file=sys.stderr)
+        # exit non-zero so cron detects failure; avoid re-raising to prevent
+        # duplicate tracebacks and ensure cleanup runs below
+        sys.exit(1)
     finally:
-        conn.commit()
-        conn.close()
+        # only commit/close if connection was created
+        if conn is not None:
+            try:
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
