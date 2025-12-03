@@ -240,7 +240,9 @@ def store_snapshot(
         for it in items:
             dish_id = _upsert_dish(conn, it)
             # ensure tags and dish_tag mapping
-            tags = it.get("tags") or []
+            tags = (
+                it.get("zusatzstoffe") or []
+            )  # German for "additives", also includes tags
             tag_map = _ensure_tags(conn, tags)
             for code, tag_id in tag_map.items():
                 cur.execute(
