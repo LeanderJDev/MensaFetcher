@@ -67,8 +67,9 @@ def notify_if_configured(cmd: Optional[str], subject: str, body: str) -> None:
         # user to pass e.g. '/usr/bin/notify-send' or 'sh /path/to/script.sh'
         subprocess.run([cmd, subject, body], check=False)
     except Exception:
-        print("Notification failed", file=sys.stderr)
+        print("=== Notification failed ===", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+        print("=== End notification error ===", file=sys.stderr)
 
 
 def main() -> None:
