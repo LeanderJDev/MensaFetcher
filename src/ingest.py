@@ -98,10 +98,11 @@ def main() -> None:
     )
     args = p.parse_args()
 
-    date_token = parse_date_arg(args.date)
-
-    conn = sqlite3.connect(args.db, timeout=10.0)
     try:
+        date_token = parse_date_arg(args.date)
+
+        conn = sqlite3.connect(args.db, timeout=10.0)
+
         # recommended pragmas for cron usage
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA journal_mode = WAL")
@@ -124,12 +125,6 @@ def main() -> None:
         if args.attempt == 2:
             empties = dbmod.compute_empties(conn, date_token)
             print(f"Found {len(empties)} items that went empty since attempt=1")
-            if len(empties) > 0:
-                subj = f"Mensa: {len(empties)} emptied items on {date_token}"
-                body = "\n".join(
-                    [f"{e['name']} ({e['canonical_hash']})" for e in empties]
-                )
-                notify_if_configured(args.notify_cmd, subj, body)
 
     except Exception:
         tb = traceback.format_exc()
