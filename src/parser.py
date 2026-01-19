@@ -209,8 +209,14 @@ def extract_from_node(node: Tag, global_zs: Dict[str, str]) -> Dict[str, Optiona
     category = None
     cls = node.get("class") or []
     if isinstance(cls, list) and len(cls) >= 3:
-        # third token (index 2)
-        category = clean_text(cls[2])
+        # second token (index 1)
+        category = clean_text(cls[1])
+
+    if category == "checkempty" or category == "conditional":
+        # There was an error reading the category
+        logging.error(
+            f"category was wrong tag: {category}, possible options would have been: {cls}"
+        )
 
     # description: collect non-heading, non-price text parts excluding zusatz tokens
     desc_parts = []
