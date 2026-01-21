@@ -52,7 +52,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         description="Show snapshot entries filtered by tag code(s)"
     )
     p.add_argument("--db", default="mensa.db", help="Path to sqlite DB file")
-    p.add_argument("--tag", action="append", help="Tag code to filter (repeatable)")
+    p.add_argument(
+        "--tag", action="append", help="Tag code to filter (repeatable)"
+    )  # Hier war GH CP verwirrt vom deutschen Tag und den Tagen
     p.add_argument("--from", dest="from_date", help="Start date (inclusive) YYYY-MM-DD")
     p.add_argument("--to", dest="to_date", help="End date (inclusive) YYYY-MM-DD")
     p.add_argument(
@@ -66,10 +68,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         for t in args.tag:
             # accept comma-separated lists too
             tags += [x.strip() for x in t.split(",") if x.strip()]
-
-    if not tags:
-        print("Please provide at least one --tag", file=sys.stderr)
-        return 2
 
     start, end = parse_date_range(args.from_date, args.to_date, args.days)
 
