@@ -80,20 +80,35 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     cur = conn.cursor()
 
-    placeholders = ",".join(["?"] * len(tags))
-    q = (
-        "SELECT s.id as snapshot_id, s.date, s.attempt, s.created_at, s.empties_count, "
-        "se.category, se.price_eur, se.went_empty, "
-        "d.id as dish_id, d.name as dish_name, d.description as dish_description, t.code as tag_code "
-        "FROM snapshot_entry se "
-        "JOIN snapshot s ON s.id = se.snapshot_id "
-        "JOIN dish d ON d.id = se.dish_id "
-        "JOIN dish_tag dt ON dt.dish_id = d.id "
-        "JOIN tag t ON t.id = dt.tag_id "
-        f"WHERE t.code IN ({placeholders}) "
-    )
+    # If tags provided, filter by tag codes; otherwise use only date filtering
+    params: List[str] = []
+    if tags:
+        placeholders = ",".join(["?"] * len(tags))
+        q = (
+            "SELECT s.id as snapshot_id, s.date, s.attempt, s.created_at, s.empties_count, "
+            "se.category, se.price_eur, se.went_empty, "
+            "d.id as dish_id, d.name as dish_name, d.description as dish_description, t.code as tag_code "
+            "FROM snapshot_entry se "
+            "JOIN snapshot s ON s.id = se.snapshot_id "
+            "JOIN dish d ON d.id = se.dish_id "
+            "JOIN dish_tag dt ON dt.dish_id = d.id "
+            "JOIN tag t ON t.id = dt.tag_id "
+            f"WHERE t.code IN ({placeholders}) "
+        )
+        params = tags[:]
+    else:
+        # no tag filter: select entries and include tags via subquery
+        q = (
+            "SELECT s.id as snapshot_id, s.date, s.attempt, s.created_at, s.empties_count, "
+            "se.category, se.price_eur, se.went_empty, "
+            "d.id as dish_id, d.name as dish_name, d.description as dish_description, "
+            "(SELECT GROUP_CONCAT(t.code, ',') FROM dish_tag dt JOIN tag t ON t.id = dt.tag_id WHERE dt.dish_id = d.id) as tag_code "
+            "FROM snapshot_entry se "
+            "JOIN snapshot s ON s.id = se.snapshot_id "
+            "JOIN dish d ON d.id = se.dish_id "
+            "WHERE 1=1 "
+        )
 
-    params: List[str] = tags[:]
     if start:
         q += " AND s.date >= ?"
         params.append(start)
