@@ -114,3 +114,31 @@ def get_dish_timeseries(conn: sqlite3.Connection, dish_identifier: Any) -> pd.Da
     rows = conn.execute(q, param).fetchall()
     df = pd.DataFrame([dict(r) for r in rows])
     return df
+
+
+def get_tags_distribution_timeseries(
+    conn: sqlite3.Connection, attempt: int = 1
+) -> pd.DataFrame:
+    """Return all dishes with tags over time for a specific attempt.
+
+    Fetches all snapshot entries for the given attempt, including dish tags.
+
+    Columns: date, canonical_hash, name, category, tags, snapshot_id
+    The 'tags' column contains comma-separated tag codes.
+    """
+    q = """
+    SELECT s.date, d.canonical_hash, d.name, se.category,
+      (SELECT GROUP_CONCAT(t.code, ',') FROM dish_tag dt JOIN tag t ON dt.tag_id = t.id WHERE dt.dish_id = d.id) AS tags,
+      s.id as snapshot_id
+    FROM snapshot_entry se
+    JOIN snapshot s ON se.snapshot_id = s.id
+    JOIN dish d ON se.dish_id = d.id
+    WHERE s.attempt = ?
+    ORDER BY s.date, d.name
+    """
+    rows = conn.execute(q, (attempt,)).fetchall()
+    df = pd.DataFrame([dict(r) for r in rows])
+    if not df.empty:
+        # normalize tags into lists for convenience
+        df["tags"] = df["tags"].fillna("").apply(lambda s: s.split(",") if s else [])
+    return df
