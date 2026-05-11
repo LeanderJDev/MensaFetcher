@@ -1,3 +1,10 @@
 requests==2.32.4
 beautifulsoup4==4.14.2
 dotenv==0.9.9
+pandas
+matplotlib
+seaborn
+plotly
+jupyterlab
+notebook
+streamlit

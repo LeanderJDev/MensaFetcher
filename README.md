@@ -1,20 +1,20 @@
 # MensaFetcher
 
--   Datensammlung und Parsing von Mensa-Speiseplänen der my-mensa.de Plattform.
--   Kompatibel mit allen my-mensa.de/essen.php Seiten
+- Datensammlung und Parsing von Mensa-Speiseplänen der my-mensa.de Plattform.
+- Kompatibel mit allen my-mensa.de/essen.php Seiten
 
 ## parser.py
 
--   Modul zum Parsen der Mensa‑HTML (auch komprimierte Einzeiler) und Export als JSON.
--   Entfernt unsichtbare Zeichen aus Textfeldern.
--   Extrahiert Gerichtsinformationen: `name`, `description`, `category`, `zusatzstoffe`, `tags`, `price_eur`.
+- Modul zum Parsen der Mensa‑HTML (auch komprimierte Einzeiler) und Export als JSON.
+- Entfernt unsichtbare Zeichen aus Textfeldern.
+- Extrahiert Gerichtsinformationen: `name`, `description`, `category`, `zusatzstoffe`, `tags`, `price_eur`.
 
 ### fetch_menu.py
 
--   Wrapper für parser.py zum Abrufen und Parsen von Menüs
--   Unterstützt Eingabe per URL (`--url`) oder lokale Datei (`--file`).
--   Ausgabe als JSON in Datei (`-o/--output`)
--   Optionales `--date` Argument zur Angabe des Datums des Speiseplans (Format: `YYYYMMDD` oder `today` für aktuelles Datum).
+- Wrapper für parser.py zum Abrufen und Parsen von Menüs
+- Unterstützt Eingabe per URL (`--url`) oder lokale Datei (`--file`).
+- Ausgabe als JSON in Datei (`-o/--output`)
+- Optionales `--date` Argument zur Angabe des Datums des Speiseplans (Format: `YYYYMMDD` oder `today` für aktuelles Datum).
 
 ## ingest.py
 
@@ -24,21 +24,21 @@ berechnet, welche Gerichte seit dem ersten Lauf leer waren.
 
 Wichtigste Dateien:
 
--   `src/ingest.py` — CLI zum Ausführen eines Ingest‑Laufs
--   `src/db.py` — DB‑Initialisierung und Helfer: `init_db`, `store_snapshot`, `compute_empties`
--   `scripts/backup_db.sh` — einfaches Backup‑Skript für die DB‑Datei
+- `src/ingest.py` — CLI zum Ausführen eines Ingest‑Laufs
+- `src/db.py` — DB‑Initialisierung und Helfer: `init_db`, `store_snapshot`, `compute_empties`
+- `scripts/backup_db.sh` — einfaches Backup‑Skript für die DB‑Datei
 
 Benachrichtigungen:
 
--   `src.ingest` unterstützt `--notify-cmd` oder die Umgebungsvariable
-    `MENSA_NOTIFY_CMD` — wird mit `subject` und `body` aufgerufen.
+- `src.ingest` unterstützt `--notify-cmd` oder die Umgebungsvariable
+  `MENSA_NOTIFY_CMD` — wird mit `subject` und `body` aufgerufen.
 
 Hinweis: für die Langzeit‑Auswertung lade die relevanten Tabellen nach Pandas
 mit `pd.read_sql()` und verwende `merge`/`explode` für Tag‑Analysen.
 
 ## Schnellstart
 
--   Abhängigkeiten installieren (empfohlen in einem venv):
+- Abhängigkeiten installieren (empfohlen in einem venv):
 
 ```bash
 python3 -m venv .venv
@@ -47,13 +47,13 @@ python3 -m pip install --upgrade pip
 pip install requests beautifulsoup4
 ```
 
--   Beispielaufruf (aus Datei):
+- Beispielaufruf (aus Datei):
 
 ```bash
 python3 mensa/parse_menu.py --file menu_251126.html -o out.json
 ```
 
--   Wenn `--date` gesetzt ist und kein `-o/--output` angegeben wurde, wird die Ausgabedatei automatisch als `menu_<date>.json` benannt:
+- Wenn `--date` gesetzt ist und kein `-o/--output` angegeben wurde, wird die Ausgabedatei automatisch als `menu_<date>.json` benannt:
 
 ```bash
 python3 mensa/parse_menu.py --file menu_251126.html --date 2025329
@@ -62,7 +62,7 @@ python3 mensa/parse_menu.py --file menu_251126.html --date 2025329
 
 ## Cron‑Beispiel
 
--   Tägliches Ausführen um 06:00 Uhr und Ablage pro Datum (systemweit für den Benutzer):
+- Tägliches Ausführen um 06:00 Uhr und Ablage pro Datum (systemweit für den Benutzer):
 
 ```cron
 15 11 * * 1-5 cd /path/to/MensaFetcher/ && /usr/bin/python3 src.ingest --url "https://example.my-mensa.de/essen.php?mensa=123" --db /path/to/MensaFetcher/menus/mensa.db --attempt 1
@@ -73,3 +73,36 @@ python3 mensa/parse_menu.py --file menu_251126.html --date 2025329
 ```
 
 Hinweis: Das Script benennt die Datei `menu_<numericDate>.json`, wenn `--date` verwendet wird und kein `-o` gesetzt ist.
+
+## Analysis & Visualization (Notebook‑first)
+
+Verfügbare Tools (aktuell):
+
+- `scripts/analysis_utils.py` — kleine Helfer zum Öffnen der DB und Export in `pandas.DataFrame` (`open_conn`, `list_snapshots`, `get_snapshot_entries`, `export_snapshot_to_pandas`, `get_dish_timeseries`).
+- `analysis/01-explore.ipynb` — erstes Jupyter‑Notebook mit Beispiel‑Workflows: Snapshots auflisten, Snapshot in DataFrame laden und einfache Preis‑Plots.
+
+Geplante/optionale Erweiterungen:
+
+- Mehr Notebooks mit Analysen: Zeitreihen (empties_count), Tag‑/Allergen‑Analysen, Kategorie‑Vergleiche.
+- CLI‑Skript `scripts/analyze.py` für reproducible Exporte und PNG‑Reports.
+- Interaktives Dashboard (Streamlit oder Plotly Dash) für Nicht‑Entwickler: Filter, Drilldowns und tägliche Reports.
+
+Empfehlungen für die lokale Einrichtung:
+
+1. Erstelle ein virtuelles Environment und installiere die Abhängigkeiten:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. Notebook starten:
+
+```bash
+jupyter lab
+```
+
+3. Datenbankpfad in `analysis/01-explore.ipynb` anpassen (`DB_PATH`).
+
+Wenn du mit den Notebooks zufrieden bist, kann ich als nächsten Schritt einen CLI‑Exporter und/oder ein Streamlit‑Dashboard ergänzen.
